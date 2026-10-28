@@ -386,7 +386,7 @@ async function load(){
   const saved = store('brg-cat'); if(saved!=null && saved!=='' && cnt[saved]) $('#cat').value = saved;
   try{ await loadScript('specs.js'); S = window.BRG_SPECS || []; }catch(e){ S = []; }
   try{ await loadScript('xref.js'); X = window.BRG_XREF || []; }catch(e){ X = []; }
-  S.forEach((s,i) => { s._i = i; s.z = normKey(s.m); s.zl = normLoose(s.m); s.vz = (s.v||[]).map(normKey); s.ak = s.z.replace(/^HR(\d)/,'$1').replace(/(\d)X?J$/,'$1'); s.g = famGroup(s); });
+  S.forEach((s,i) => { s._i = i; s.z = normKey(s.m); s.zl = normLoose(s.m); s.vz = (s.v||[]).map(normKey); s.ak = s.z.replace(/^HR(\d)/,'$1').replace(/(\d)X?J$/,'$1').replace(/-/g,''); s.g = famGroup(s); });
   X.forEach(r => { r.z = {}; for(const k in r.m) r.z[k] = normLoose(r.m[k]); });
   $('#meta').textContent += ` · 형번 ${S.length.toLocaleString()}개`;
   renderDim(); if(lastQ) run(lastQ);
@@ -509,16 +509,17 @@ function variants(t){ const v = new Set([t.replace(/\s+/g,'').toUpperCase()]); f
 function specHits(full, scope){
   if(!S) return [];
   const inScope = s => scope==null || s.c===scope;
-  let hits = S.filter(s => inScope(s) && (s.z===full || s.vz.includes(full) || s.ak===full));
+  const nh = x => x.replace(/-/g,'');
+  let hits = S.filter(s => inScope(s) && (s.z===full || s.vz.includes(full) || s.ak===nh(full)));
   if(!hits.length){
     // strip suffix progressively (6205ZZC3 -> 6205ZZ -> 6205)
     for(let L = full.length-1; L >= 3 && !hits.length; L--){
       const p = full.slice(0, L);
-      hits = S.filter(s => inScope(s) && (s.z===p || s.vz.includes(p) || s.ak===p));
+      hits = S.filter(s => inScope(s) && (s.z===p || s.vz.includes(p) || s.ak===nh(p)));
       if(hits.length) hits._base = p;
     }
   }
-  if(!hits.length && full.length>=3) hits = S.filter(s => inScope(s) && (s.z.startsWith(full) || s.ak.startsWith(full))).slice(0, 80);
+  if(!hits.length && full.length>=3) hits = S.filter(s => inScope(s) && (s.z.startsWith(full) || s.ak.startsWith(nh(full)))).slice(0, 80);
   const rank = s => (s.z===full || s.vz.includes(full)) ? 0 : 1;
   hits.sort((a,b) => rank(a)-rank(b) || a.c-b.c || a.z.length-b.z.length || a.i-b.i);
   return hits;
@@ -816,8 +817,9 @@ function nxHtml(q){
     if(sp.length) h += nxTable('대응 형번의 카탈로그 값', sp, null);
   }
   // ② 치수 기준 (니들)
-  let base = S.filter(s => s.z===z || s.vz.includes(z));
-  if(!base.length){ for(let L=z.length-1; L>=4 && !base.length; L--) base = S.filter(s => s.z===z.slice(0,L)); }
+  const zh = z.replace(/-/g,'');
+  let base = S.filter(s => s.z===z || s.vz.includes(z) || s.ak===zh);
+  if(!base.length){ for(let L=z.length-1; L>=4 && !base.length; L--) base = S.filter(s => s.z===z.slice(0,L) || s.ak===zh.slice(0,L-(z.length-zh.length))); }
   base = base.filter(s => s.g==='니들' || ntOf(s));
   const dec = needleDecode(q);
   let qd, qD, qB, nt, src;
